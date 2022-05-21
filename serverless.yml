@@ -1,0 +1,149 @@
+org: qwtfy
+app: quest-app
+service: QuestServerless
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  websocketsApiRouteSelectionExpression: $request.body.action
+
+plugins:
+  - serverless-offline
+  - serverless-dynamodb-local
+
+	
+custom:
+  dynamodb:
+    stages:
+      - dev
+    start:
+      migrate: true
+
+
+functions:
+  connectionHandler:
+    handler: lambdas/ChatController.connectionHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+  setUserId:
+    handler: lambdas/ChatController.setUserId
+    events:
+      - websocket:
+          route: setUserId
+  sendMSG:
+    handler: lambdas/ChatController.sendMSG
+    events:
+      - websocket:
+          route: send # will trigger if $request.body.action === "foo"
+  defaultHandler:
+    handler: lambdas/ChatController.defaultHandler
+    events:
+      - websocket: $default #simple event definition without extra route property
+  hello:
+    handler: handler.hello
+    events:
+      - httpApi:
+          method: GET
+          path: /hello
+
+  createQuest:
+    handler: lambdas/QuestController.create
+    events:
+      - httpApi:
+          method: POST
+          path: /createQuest
+  
+  getAllQuest:
+    handler: lambdas/QuestController.getAll
+    events:
+      - httpApi:
+          method: GET
+          path: /getAllQuests
+  
+  getMyCreatedQuests:
+    handler: lambdas/QuestController.getMyCreatedQuests
+    events:
+      - httpApi:
+          method: GET
+          path: /getMyCreatedQuests
+  getMyQuests:
+    handler: lambdas/QuestController.getMyQuests
+    events:
+      - httpApi:
+          method: GET
+          path: /getMyQuests
+  getQuest:
+    handler: lambdas/QuestController.getQuest
+    events:
+      - httpApi:
+          method: GET
+          path: /getQuest
+  editQuest:
+    handler: lambdas/QuestController.editQuest
+    events:
+      - httpApi:
+          method: POST
+          path: /editQuest
+  acceptQuest:
+    handler: lambdas/QuestController.acceptQuest
+    events:
+      - httpApi:
+          method: POST
+          path: /acceptQuest
+  setQuestStatus:
+    handler: lambdas/QuestController.setQuestStatus
+    events:
+      - httpApi:
+          method: POST
+          path: /setQuestStatus
+
+
+resources:
+  Resources:
+    QuestsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: QuestTable
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    ChatTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ChatTable
+        AttributeDefinitions:
+          - AttributeName:  userId
+            AttributeType:  S
+          - AttributeName:  connectionId
+            AttributeType:  S
+        KeySchema:
+          - AttributeName:  userId
+            KeyType:  HASH
+        GlobalSecondaryIndexes:
+          - IndexName:  ChatIndex
+            KeySchema:
+              - AttributeName:  connectionId
+                KeyType: HASH
+            Projection:
+              ProjectionType: 'ALL'
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1    
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+
+
+
